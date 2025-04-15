@@ -61,7 +61,7 @@
         }
 
         .playing .album-cover {
-            animation-play-state: running;
+            animation-play-state: static;
         }
 
         @keyframes rotate {
@@ -147,6 +147,10 @@
             transform: scale(1.1);
         }
 
+        .control-btn.active i {
+            color: #1DB954 !important;
+        }
+
         .volume-container {
             display: flex;
             align-items: center;
@@ -161,6 +165,7 @@
         #volume {
             flex: 1;
             -webkit-appearance: none;
+            appearance: none;
             height: 5px;
             background: #555;
             border-radius: 5px;
@@ -178,7 +183,7 @@
 
         .playlist {
             text-align: left;
-            max-height: 150px;
+            max-height: 250px;
             overflow-y: auto;
             padding-right: 10px;
         }
@@ -235,7 +240,7 @@
         </div>
 
         <div class="album-cover">
-            <img src="https://via.placeholder.com/300" id="cover" alt="Capa do álbum">
+            <img src="" id="cover" alt="Capa do álbum">
         </div>
 
         <div class="song-details">
@@ -260,6 +265,7 @@
             <button id="prev" class="control-btn"><i class="fas fa-backward"></i></button>
             <button id="play" class="control-btn main-btn"><i class="fas fa-play"></i></button>
             <button id="next" class="control-btn"><i class="fas fa-forward"></i></button>
+            <button id="repeat" class="control-btn" title="Repetir"><i class="fas fa-redo"></i></button>
         </div>
 
         <div class="volume-container">
@@ -289,35 +295,37 @@
         const prevBtn = document.getElementById('prev');
         const playBtn = document.getElementById('play');
         const nextBtn = document.getElementById('next');
+        const repeatBtn = document.getElementById('repeat');
         const volumeSlider = document.getElementById('volume');
         const volumeIcon = document.getElementById('volume-icon');
         const playlistContainer = document.getElementById('playlist-items');
 
         // Lista de músicas com URLs públicas para garantir funcionamento
         const songs = [
-    {
-        title: 'A INTERNET É TÓXICA ',
-        artist: 'Mc Saci',
-        coverPath: 'assets/images/aquela_la.jpg', // Certifique-se que esta imagem existe
-        audioPath: 'assets/audio/a.mp3' // Arquivo local
-    },
-    {
-        title: 'In the end',
-        artist: 'Linkin Park',
-        coverPath: 'assets/images/lp.jpg',
-        audioPath: 'assets/audio/b.mp3' // Arquivo local
-    },
-    {
-        title: 'Blue Bird',
-        artist: 'Ikimonogakari',
-        coverPath: 'assets/images/passaro.jpg',
-        audioPath: 'assets/audio/c.mp3' // Arquivo local
-    }
-];
+            {
+                title: 'In the end',
+                artist: 'Linkin Park',
+                coverPath: 'assets/images/lp.jpg',
+                audioPath: 'assets/audio/Lp.mp3'
+            },
+            {
+                title: 'Snow (Hey Oh)',
+                artist: 'Red Hot Chili Peppers',
+                coverPath: 'assets/images/redhot.jpeg',
+                audioPath: 'assets/audio/snow.mp3'
+            },
+            {
+                title: 'Blue Bird',
+                artist: 'Ikimonogakari',
+                coverPath: 'assets/images/passaro.jpg',
+                audioPath: 'assets/audio/c.mp3'
+            }
+        ];
 
         // Variáveis de controle
         let songIndex = 0;
         let isPlaying = false;
+        let isRepeatOn = false;
 
         // Carregar músicas na playlist
         function loadPlaylist() {
@@ -345,18 +353,29 @@
             artist.textContent = song.artist;
             cover.src = song.coverPath;
             
-            // Verifica se o arquivo de áudio existe antes de carregar
             audioPlayer.src = song.audioPath;
             audioPlayer.load();
             
-            // Resetar progresso
             progress.style.width = '0%';
             currentTimeEl.textContent = '0:00';
             
-            // Atualizar item ativo na playlist
             document.querySelectorAll('#playlist-items li').forEach((item, index) => {
                 item.classList.toggle('active', index === songIndex);
             });
+        }
+
+        // Alternar modo de repetição
+        function toggleRepeat() {
+            isRepeatOn = !isRepeatOn;
+            repeatBtn.classList.toggle('active', isRepeatOn);
+            
+            if (isRepeatOn) {
+                repeatBtn.innerHTML = '<i class="fas fa-redo" style="color: #1DB954;"></i>';
+                repeatBtn.title = "Repetindo: Ativado";
+            } else {
+                repeatBtn.innerHTML = '<i class="fas fa-redo"></i>';
+                repeatBtn.title = "Repetir";
+            }
         }
 
         // Reproduzir música com tratamento de erro completo
@@ -368,10 +387,8 @@
                 isPlaying = true;
             }).catch(error => {
                 console.error('Erro ao reproduzir:', error);
-                // Reverter estado visual
                 pauseSong();
                 
-                // Mensagem amigável para o usuário
                 if (error.name === 'NotAllowedError') {
                     alert('Por favor, clique no botão play novamente. Alguns navegadores requerem interação direta.');
                 } else {
@@ -410,7 +427,6 @@
             const progressPercent = (currentTime / duration) * 100;
             progress.style.width = `${progressPercent}%`;
 
-            // Formatar tempo (MM:SS)
             const formatTime = (time) => {
                 const minutes = Math.floor(time / 60);
                 const seconds = Math.floor(time % 60);
@@ -447,7 +463,6 @@
             const volume = volumeSlider.value;
             audioPlayer.volume = volume;
             
-            // Atualizar ícone de volume
             volumeIcon.className = 'fas ' + (
                 volume == 0 ? 'fa-volume-mute' :
                 volume < 0.3 ? 'fa-volume-off' :
@@ -461,10 +476,18 @@
             playBtn.addEventListener('click', () => isPlaying ? pauseSong() : playSong());
             prevBtn.addEventListener('click', prevSong);
             nextBtn.addEventListener('click', nextSong);
+            repeatBtn.addEventListener('click', toggleRepeat);
             
             audioPlayer.addEventListener('timeupdate', updateProgress);
             audioPlayer.addEventListener('loadedmetadata', setDuration);
-            audioPlayer.addEventListener('ended', nextSong);
+            audioPlayer.addEventListener('ended', () => {
+                if (isRepeatOn) {
+                    audioPlayer.currentTime = 0;
+                    audioPlayer.play();
+                } else {
+                    nextSong();
+                }
+            });
             audioPlayer.addEventListener('error', (e) => {
                 console.error('Erro no player de áudio:', e.target.error);
             });
